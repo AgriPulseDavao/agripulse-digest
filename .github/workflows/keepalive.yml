@@ -1,0 +1,28 @@
+# Prevents GitHub from auto-disabling the scheduled workflows
+# (weekly-digest, healthcheck) after 60 days of repo inactivity.
+# Makes an empty commit whenever the repo has been idle 45+ days.
+name: Keepalive
+on:
+  schedule:
+    - cron: '0 0 1,15 * *'   # 1st & 15th of each month, 08:00 PHT
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Empty commit if repo idle 45+ days
+        run: |
+          last=$(git log -1 --format=%ct)
+          days=$(( ($(date +%s) - last) / 86400 ))
+          echo "Last commit: ${days} days ago"
+          if [ "$days" -ge 45 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "chore: keepalive (repo idle ${days}d)"
+            git push
+          else
+            echo "Repo active recently - nothing to do"
+          fi
